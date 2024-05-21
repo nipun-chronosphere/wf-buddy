@@ -1,4 +1,3 @@
-// src/App.js
 import React, { useState } from 'react';
 import './App.css';
 
@@ -31,7 +30,7 @@ function extractSubqueries(query) {
 }
 
 function replaceDotsAndHyphens(query) {
-  return query.replace(/ts\("([^"]+?)"/, (match, metric) => {
+  return query.replace(/ts\("([^"]+?)"/g, (match, metric) => {
     const updatedMetric = metric.replace(/[.-]/g, '_');
     return `ts("${updatedMetric}"`;
   });
@@ -44,6 +43,37 @@ function generateSimplifiedQuery(query, subqueries) {
     simplifiedQuery = simplifiedQuery.replace(subquery, placeholder);
   });
   return simplifiedQuery;
+}
+
+function prettifyQuery(query) {
+  let indentLevel = 0;
+  const indent = '    ';
+  let formattedQuery = '';
+  let i = 0;
+
+  while (i < query.length) {
+    const char = query[i];
+
+    if (char === '(' || char === '[') {
+      formattedQuery += char + '\n';
+      indentLevel++;
+      formattedQuery += indent.repeat(indentLevel);
+    } else if (char === ')' || char === ']') {
+      formattedQuery += '\n';
+      indentLevel--;
+      formattedQuery += indent.repeat(indentLevel) + char;
+    } else {
+      formattedQuery += char;
+    }
+
+    i++;
+  }
+
+  return formattedQuery;
+}
+
+function minifyQuery(query) {
+  return query.replace(/\s+/g, ' ').replace(/\n/g, '');
 }
 
 function App() {
@@ -76,6 +106,16 @@ function App() {
 
   const toggleShowValues = () => {
     setShowValues(!showValues);
+  };
+
+  const handlePrettify = () => {
+    const prettyQuery = prettifyQuery(simplifiedQuery);
+    setSimplifiedQuery(prettyQuery);
+  };
+
+  const handleMinify = () => {
+    const minifiedQuery = minifyQuery(simplifiedQuery);
+    setSimplifiedQuery(minifiedQuery);
   };
 
   return (
@@ -127,6 +167,8 @@ function App() {
             <button onClick={toggleShowValues}>
               {showValues ? 'Show Placeholders' : 'Show Values'}
             </button>
+            <button onClick={handlePrettify}>Prettify</button>
+            <button onClick={handleMinify}>Minify</button>
           </div>
         </main>
       </div>
