@@ -160,9 +160,11 @@ function App() {
                   const index = parseInt(match.slice(3, -1)) - 1;
                   return queries[index];
                 }) : simplifiedQuery}
-                readOnly
                 rows="10"
                 cols="50"
+                onChange={(e) => setSimplifiedQuery(e.target.value)}
+                style={{ resize: 'vertical' }}
+
             />
             <button onClick={toggleShowValues}>
               {showValues ? 'Show Placeholders' : 'Show Values'}
