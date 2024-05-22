@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
+import { Analytics } from "@vercel/analytics/react"
 
 function extractSubqueries(query) {
   const subqueries = [];
@@ -173,6 +174,7 @@ function App() {
             <button onClick={handleMinify}>Minify</button>
           </div>
         </main>
+        <Analytics />
       </div>
   );
 }
