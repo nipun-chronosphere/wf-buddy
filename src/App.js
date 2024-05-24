@@ -30,6 +30,49 @@ function extractSubqueries(query) {
   return subqueries;
 }
 
+
+function extractWavefrontSubqueries(query) {
+  const subqueries = [];
+  const stack = [];
+  let startIndex = -1;
+  let inTS = false;
+
+  for (let i = 0; i < query.length; i++) {
+    if (query.substr(i, 3) === 'ts(') {
+      if (!inTS) {
+        startIndex = i;
+        inTS = true;
+      }
+      stack.push('(');
+      i += 2; // Skip "ts("
+    } else if (query[i] === '(' && inTS) {
+      stack.push('(');
+    } else if (query[i] === ')' && inTS) {
+      stack.pop();
+      if (stack.length === 0) {
+        subqueries.push(query.substring(startIndex, i + 1));
+        inTS = false;
+      }
+    }
+  }
+
+  return subqueries;
+}
+
+// Function to extract Prometheus subqueries
+function extractPrometheusSubqueries(query) {
+  const subqueries = [];
+  const regex = /[a-zA-Z_:][a-zA-Z0-9_:]*\{[^}]*\}/g;
+  let match;
+
+  while ((match = regex.exec(query)) !== null) {
+    subqueries.push(match[0]);
+  }
+
+  return subqueries;
+}
+
+
 function replaceDotsAndHyphens(query) {
   return query.replace(/ts\("([^"]+?)"/g, (match, metric) => {
     const updatedMetric = metric.replace(/[.-]/g, '_');
@@ -48,18 +91,18 @@ function generateSimplifiedQuery(query, subqueries) {
 
 function prettifyQuery(query) {
   let indentLevel = 0;
-  const indent = '    ';
+  const indent = '  ';
   let formattedQuery = '';
   let i = 0;
 
   while (i < query.length) {
     const char = query[i];
 
-    if (char === '(' || char === '[') {
+    if (char === '(') {
       formattedQuery += char + '\n';
       indentLevel++;
       formattedQuery += indent.repeat(indentLevel);
-    } else if (char === ')' || char === ']') {
+    } else if (char === ')') {
       formattedQuery += '\n';
       indentLevel--;
       formattedQuery += indent.repeat(indentLevel) + char;
@@ -82,14 +125,41 @@ function App() {
   const [queries, setQueries] = useState([]);
   const [simplifiedQuery, setSimplifiedQuery] = useState('');
   const [showValues, setShowValues] = useState(false);
+  const [queryType, setQueryType] = useState('wavefront');
+
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const extractedQueries = extractSubqueries(input);
-    setQueries(extractedQueries);
-    const simplified = generateSimplifiedQuery(input, extractedQueries);
+    let extractedSubqueries = [];
+    if (queryType === 'wavefront') {
+      extractedSubqueries = extractWavefrontSubqueries(input);
+    } else if (queryType === 'prometheus') {
+      extractedSubqueries = extractPrometheusSubqueries(input);
+    }
+
+    // const extractedQueries = extractSubqueries(input);
+    setQueries(extractedSubqueries);
+    const simplified = generateSimplifiedQuery(input, extractedSubqueries);
     setSimplifiedQuery(simplified);
   };
+
+
+  // const handleExtractQueries = () => {
+  //   let extractedSubqueries = [];
+  //   if (queryType === 'wavefront') {
+  //     extractedSubqueries = extractWavefrontSubqueries(inputQuery);
+  //   } else if (queryType === 'prometheus') {
+  //     extractedSubqueries = extractPrometheusSubqueries(inputQuery);
+  //   }
+  //   setSubqueries(extractedSubqueries);
+  //
+  //   let simplified = inputQuery;
+  //   extractedSubqueries.forEach((subquery, index) => {
+  //     const placeholder = `\${Q${index + 1}}`;
+  //     simplified = simplified.replace(subquery, placeholder);
+  //   });
+  //   setSimplifiedQuery(simplified);
+  // };
 
   const handleReplaceDotsAndHyphens = (index) => {
     const updatedQueries = queries.map((query, i) =>
@@ -136,6 +206,26 @@ function App() {
                   cols="50"
               />
             </div>
+            <div className="radio-buttons">
+              <label>
+                <input
+                    type="radio"
+                    value="wavefront"
+                    checked={queryType === 'wavefront'}
+                    onChange={() => setQueryType('wavefront')}
+                />
+                Wavefront
+              </label>
+              <label>
+                <input
+                    type="radio"
+                    value="prometheus"
+                    checked={queryType === 'prometheus'}
+                    onChange={() => setQueryType('prometheus')}
+                />
+                Prometheus
+              </label>
+            </div>
             <button type="submit">Extract Queries</button>
           </form>
           <div>
@@ -148,9 +238,11 @@ function App() {
                       rows="3"
                       cols="50"
                   />
-                  <button onClick={() => handleReplaceDotsAndHyphens(index)}>
-                    Replace Dots and Hyphens
-                  </button>
+                  {queryType === 'wavefront' && (
+                      <button onClick={() => handleReplaceDotsAndHyphens(index)}>
+                        Replace Dots and Hyphens
+                      </button>
+                  )}
                 </div>
             ))}
           </div>
